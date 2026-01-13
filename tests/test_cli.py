@@ -122,16 +122,11 @@ class TestCLIIntegration:
     """Test CLI integration with main components."""
 
     @patch("src.cli.FlightFetcher")
-    @patch("src.cli.FlightAnalyzer")
-    def test_cli_end_to_end_basic(self, mock_analyzer, mock_fetcher):
+    def test_cli_end_to_end_basic(self, mock_fetcher):
         """Test basic end-to-end CLI flow."""
         # Mock fetcher response
         mock_fetcher_instance = MagicMock()
         mock_fetcher.return_value = mock_fetcher_instance
-
-        # Mock analyzer response
-        mock_analyzer_instance = MagicMock()
-        mock_analyzer.return_value = mock_analyzer_instance
 
         runner = CliRunner()
         with patch("src.cli.main_search") as mock_search:

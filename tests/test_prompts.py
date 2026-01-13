@@ -2,47 +2,34 @@
 
 import pytest
 from src.prompts import (
-    PromptTemplate,
+    PromptInfo,
     get_all_prompts,
-    get_prompt_by_id,
+    format_prompts_for_claude,
     PROMPT_COUNT,
+    PROMPTS,
 )
 
 
-class TestPromptTemplate:
-    """Test PromptTemplate class."""
+class TestPromptInfo:
+    """Test PromptInfo class."""
 
-    def test_prompt_template_initialization(self):
-        """Test PromptTemplate can be initialized."""
-        template = PromptTemplate(
+    def test_prompt_info_initialization(self):
+        """Test PromptInfo can be initialized."""
+        prompt = PromptInfo(
             id=1,
             name="Test Prompt",
-            system="System prompt",
-            user_template="User prompt with {flight_data}",
+            description="Test description",
         )
-        assert template.id == 1
-        assert template.name == "Test Prompt"
-        assert template.system == "System prompt"
-        assert template.user_template == "User prompt with {flight_data}"
-
-    def test_prompt_template_format(self):
-        """Test PromptTemplate can format user template."""
-        template = PromptTemplate(
-            id=1,
-            name="Test Prompt",
-            system="System prompt",
-            user_template="Analyze flights: {flight_data}",
-        )
-        flight_data = "TYO to LAX, $1000"
-        formatted = template.format_user(flight_data)
-        assert "Analyze flights: TYO to LAX, $1000" in formatted
+        assert prompt.id == 1
+        assert prompt.name == "Test Prompt"
+        assert prompt.description == "Test description"
 
 
 class TestPromptLoading:
     """Test loading prompts from spec.md."""
 
     def test_get_all_prompts_returns_list(self):
-        """Test get_all_prompts returns a list."""
+        """Test get_all_prompts returns a list of dicts."""
         prompts = get_all_prompts()
         assert isinstance(prompts, list)
         assert len(prompts) == PROMPT_COUNT
@@ -55,19 +42,17 @@ class TestPromptLoading:
         """Test all prompts have required fields."""
         prompts = get_all_prompts()
         for prompt in prompts:
-            assert hasattr(prompt, "id")
-            assert hasattr(prompt, "name")
-            assert hasattr(prompt, "system")
-            assert hasattr(prompt, "user_template")
-            assert prompt.id is not None
-            assert prompt.name is not None
-            assert prompt.system is not None
-            assert prompt.user_template is not None
+            assert "id" in prompt
+            assert "name" in prompt
+            assert "description" in prompt
+            assert prompt["id"] is not None
+            assert prompt["name"] is not None
+            assert prompt["description"] is not None
 
     def test_prompt_ids_are_sequential(self):
         """Test prompt IDs are sequential from 1 to 7."""
         prompts = get_all_prompts()
-        ids = [p.id for p in prompts]
+        ids = [p["id"] for p in prompts]
         assert ids == list(range(1, PROMPT_COUNT + 1))
 
     def test_prompt_names_are_correct(self):
@@ -82,36 +67,31 @@ class TestPromptLoading:
             "Price Drop Watch Strategy",
         ]
         prompts = get_all_prompts()
-        actual_names = [p.name for p in prompts]
+        actual_names = [p["name"] for p in prompts]
         assert actual_names == expected_names
 
 
-class TestPromptRetrieval:
-    """Test retrieving specific prompts."""
+class TestPromptFormatting:
+    """Test formatting prompts for Claude Code."""
 
-    def test_get_prompt_by_id_valid(self):
-        """Test getting a prompt by valid ID."""
-        prompt = get_prompt_by_id(1)
-        assert prompt is not None
-        assert prompt.id == 1
-        assert prompt.name == "Hidden Route Scanner"
+    def test_format_prompts_for_claude_returns_string(self):
+        """Test format_prompts_for_claude returns a string."""
+        output = format_prompts_for_claude()
+        assert isinstance(output, str)
+        assert len(output) > 0
 
-    def test_get_prompt_by_id_all_valid(self):
-        """Test all prompt IDs can be retrieved."""
-        for i in range(1, PROMPT_COUNT + 1):
-            prompt = get_prompt_by_id(i)
-            assert prompt is not None
-            assert prompt.id == i
+    def test_format_prompts_contains_all_prompts(self):
+        """Test formatted output contains all prompt names."""
+        output = format_prompts_for_claude()
+        for prompt in PROMPTS:
+            assert prompt.name in output
 
-    def test_get_prompt_by_id_invalid(self):
-        """Test getting a prompt by invalid ID returns None."""
-        prompt = get_prompt_by_id(999)
-        assert prompt is None
-
-    def test_get_prompt_by_id_zero(self):
-        """Test getting a prompt by ID 0 returns None."""
-        prompt = get_prompt_by_id(0)
-        assert prompt is None
+    def test_format_prompts_contains_usage_instructions(self):
+        """Test formatted output contains usage instructions."""
+        output = format_prompts_for_claude()
+        assert "ANALYSIS PROMPTS" in output
+        assert "Usage:" in output
+        assert "Claude Code" in output
 
 
 class TestPromptContent:
@@ -119,45 +99,34 @@ class TestPromptContent:
 
     def test_hidden_route_scanner_contains_key_terms(self):
         """Test Hidden Route Scanner prompt contains expected terms."""
-        prompt = get_prompt_by_id(1)
-        user_text = prompt.user_template.lower()
+        prompts = get_all_prompts()
+        prompt_1 = next(p for p in prompts if p["id"] == 1)
+        description = prompt_1["description"].lower()
         expected_terms = ["hidden city", "route", "nearby airport"]
         # At least one key term should be present
-        assert any(term in user_text for term in expected_terms)
+        assert any(term in description for term in expected_terms)
 
     def test_price_manipulation_detector_contains_key_terms(self):
         """Test Price Manipulation Detector prompt contains expected terms."""
-        prompt = get_prompt_by_id(2)
-        user_text = prompt.user_template.lower()
-        assert "price" in user_text or "pricing" in user_text
+        prompts = get_all_prompts()
+        prompt_2 = next(p for p in prompts if p["id"] == 2)
+        description = prompt_2["description"].lower()
+        assert "price" in description or "pricing" in description
 
-    def test_prompt_system_message_exists(self):
-        """Test all prompts have non-empty system message."""
+    def test_all_prompts_have_descriptions(self):
+        """Test all prompts have non-empty descriptions."""
         prompts = get_all_prompts()
         for prompt in prompts:
-            assert len(prompt.system) > 0
+            assert len(prompt["description"]) > 0
 
-    def test_prompt_user_template_is_template(self):
-        """Test all prompts have placeholder for flight data."""
+    def test_prompts_structure_for_claude_code(self):
+        """Test prompts are structured correctly for Claude Code."""
         prompts = get_all_prompts()
         for prompt in prompts:
-            assert "{flight_data}" in prompt.user_template
-
-
-class TestPromptIntegration:
-    """Test prompt integration with flight data."""
-
-    def test_prompt_formatting_with_sample_data(self):
-        """Test formatting prompts with sample flight data."""
-        sample_flight_data = """
-        Flights from Tokyo (TYO) to Los Angeles (LAX):
-        - Direct: JAL 001, $1200
-        - Via San Francisco: JAL 002 + JAL 003, $950
-        Alternative: Use Narita (NRT) to San Francisco (SFO): $850
-        """
-
-        prompts = get_all_prompts()
-        for prompt in prompts:
-            formatted = prompt.format_user(sample_flight_data)
-            assert sample_flight_data in formatted
-            assert len(formatted) > 0
+            # Each prompt should have exactly these keys
+            assert set(prompt.keys()) == {"id", "name", "description"}
+            # IDs should be integers
+            assert isinstance(prompt["id"], int)
+            # Names and descriptions should be strings
+            assert isinstance(prompt["name"], str)
+            assert isinstance(prompt["description"], str)

@@ -3,6 +3,8 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from playwright.sync_api import sync_playwright, Browser, Page
+import time
+import re
 
 
 @dataclass
@@ -159,3 +161,107 @@ class FlightFetcher:
             )
 
         return url
+
+    def _wait_for_results(self, page: Page, timeout: int = 30):
+        """Wait for flight results to load.
+
+        Args:
+            page: Playwright page object.
+            timeout: Timeout in seconds (default: 30).
+
+        Raises:
+            TimeoutError: If results don't load within timeout.
+        """
+        try:
+            # Wait for flight result cards to appear
+            page.wait_for_selector(".pIav2d", timeout=timeout * 1000)
+            # Additional wait for dynamic content
+            time.sleep(2)
+        except Exception as e:
+            raise TimeoutError(f"Flight results did not load within {timeout}s: {str(e)}")
+
+    def _parse_flight_card(self, card) -> Dict[str, Any]:
+        """Parse a single flight card element.
+
+        Args:
+            card: Playwright element handle for flight card.
+
+        Returns:
+            Dictionary with flight information.
+        """
+        flight_info = {
+            "airline": "Unknown",
+            "price": "N/A",
+            "departure_time": "",
+            "arrival_time": "",
+            "duration": "",
+            "stops": 0,
+        }
+
+        try:
+            # Price (e.g., "$500")
+            price_elem = card.query_selector(".YMlIz.FpEdX, span[aria-label*='$']")
+            if price_elem:
+                price_text = price_elem.inner_text()
+                flight_info["price"] = price_text.strip()
+
+            # Airline name
+            airline_elem = card.query_selector(".sSHqwe, .tPgKwe.ogfYpf")
+            if airline_elem:
+                flight_info["airline"] = airline_elem.inner_text().strip()
+
+            # Time (e.g., "10:00 AM - 5:00 PM")
+            time_elem = card.query_selector(".wtdjmc, div[aria-label*='Departure time']")
+            if time_elem:
+                time_text = time_elem.inner_text().strip()
+                times = time_text.split("-")
+                if len(times) == 2:
+                    flight_info["departure_time"] = times[0].strip()
+                    flight_info["arrival_time"] = times[1].strip()
+
+            # Duration (e.g., "7h 30m")
+            duration_elem = card.query_selector(".gvkrdb, div[aria-label*='Total duration']")
+            if duration_elem:
+                flight_info["duration"] = duration_elem.inner_text().strip()
+
+            # Stops (e.g., "Nonstop", "1 stop", "2 stops")
+            stops_elem = card.query_selector(".EfT7Ae, div[aria-label*='stop']")
+            if stops_elem:
+                stops_text = stops_elem.inner_text().strip().lower()
+                if "nonstop" in stops_text:
+                    flight_info["stops"] = 0
+                else:
+                    # Extract number from "1 stop", "2 stops", etc.
+                    match = re.search(r"(\d+)", stops_text)
+                    if match:
+                        flight_info["stops"] = int(match.group(1))
+
+        except Exception as e:
+            # Log error but continue with partial data
+            print(f"Warning: Error parsing flight card: {str(e)}")
+
+        return flight_info
+
+    def _scrape_flights(self, page: Page) -> List[Dict[str, Any]]:
+        """Scrape flight data from Google Flights page.
+
+        Args:
+            page: Playwright page object.
+
+        Returns:
+            List of flight dictionaries.
+        """
+        flights = []
+
+        try:
+            # Find all flight result cards
+            cards = page.query_selector_all(".pIav2d")
+
+            for card in cards:
+                flight = self._parse_flight_card(card)
+                flights.append(flight)
+
+        except Exception as e:
+            print(f"Warning: Error scraping flights: {str(e)}")
+
+        return flights

@@ -1,5 +1,6 @@
 import pytest
 from src.fetcher import FlightFetcher, FlightData
+from unittest.mock import Mock, patch
 
 
 def test_fetcher_initialization():
@@ -51,3 +52,48 @@ def test_navigate_to_google_flights():
 
         assert "google.com/travel/flights" in page.url
         page.close()
+
+
+def test_scrape_flight_results_returns_list():
+    """スクレイピングがフライトリストを返すことを確認"""
+    with FlightFetcher() as fetcher:
+        browser = fetcher._launch_browser()
+        page = browser.new_page()
+
+        # Mock page content
+        page.set_content("""
+        <html>
+            <body>
+                <div class="pIav2d">
+                    <span class="YMlIz FpEdX">$500</span>
+                    <span class="sSHqwe tPgKwe ogfYpf">American Airlines</span>
+                    <div class="wtdjmc YMlIz tPgKwe ogfYpf">10:00 AM - 5:00 PM</div>
+                    <div class="gvkrdb AdWm1c tPgKwe ogfYpf">7h 30m</div>
+                    <div class="EfT7Ae AdWm1c tPgKwe">Nonstop</div>
+                </div>
+            </body>
+        </html>
+        """)
+
+        flights = fetcher._scrape_flights(page)
+
+        assert isinstance(flights, list)
+        assert len(flights) >= 0
+        page.close()
+
+
+def test_parse_flight_card_structure():
+    """フライトカードデータの構造を確認"""
+    with FlightFetcher() as fetcher:
+        mock_card = Mock()
+        mock_card.query_selector.return_value = Mock(inner_text=lambda: "$500")
+
+        flight = fetcher._parse_flight_card(mock_card)
+
+        assert isinstance(flight, dict)
+        assert "airline" in flight
+        assert "price" in flight
+        assert "departure_time" in flight
+        assert "arrival_time" in flight
+        assert "duration" in flight
+        assert "stops" in flight

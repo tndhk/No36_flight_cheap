@@ -1,10 +1,12 @@
 # Flight Cheap CLI
 
-航空券を安く取得するための AI 分析ツール。Google Flights のデータと Gemini API による 7 つの分析プロンプトで、価格最適化戦略を提案します。
+航空券を安く取得するための AI 分析ツール。Google Flights のデータを Playwright でスクレイピングし、Claude Code による対話的な分析で価格最適化戦略を提案します。
 
 ## 機能
 
-**7つの AI 分析プロンプト:**
+**Claude Code 対話分析ワークフロー:**
+
+Google Flights のフライトデータを取得後、Claude Code との対話的なセッションで以下のような分析が可能です:
 
 1. **Hidden Route Scanner** - 隠れたルートを発見（経由地、近隣空港の組み合わせ）
 2. **Price Manipulation Detector** - 価格操作を検出（最適検索方法を提案）
@@ -20,6 +22,7 @@
 
 - Python 3.11 以上
 - Git
+- Claude Code CLI (推奨)
 
 ### 1. リポジトリをクローン
 
@@ -43,34 +46,21 @@ venv\Scripts\activate  # Windows
 pip install -e .
 ```
 
-### 4. API キーを設定
+### 4. Playwright ブラウザをインストール
+
+```bash
+playwright install chromium
+```
+
+このコマンドで Chromium ブラウザがダウンロードされます（約 150MB）。
+
+### 5. 環境変数を設定（オプション）
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` ファイルを編集して、API キーを設定します。
-
-## API キー取得
-
-### SerpAPI (Google Flights)
-
-1. https://serpapi.com/ にアクセス
-2. アカウント作成（Google/GitHub でログイン可能）
-3. Dashboard から API キーをコピー
-4. `.env` の `SERPAPI_KEY` に貼り付け
-
-**無料枠:** 月 100 回の検索
-
-### Gemini API (Google AI)
-
-1. https://ai.google.dev/ にアクセス
-2. 「Get API Key」をクリック
-3. Google アカウントでサイン イン
-4. API キーをコピー
-5. `.env` の `GEMINI_API_KEY` に貼り付け
-
-**無料枠:** 15 RPM (1 分間に 15 リクエスト上限)
+`.env` ファイルでログレベルなどを調整できます（API キーは不要）。
 
 ## 使用方法
 
@@ -92,6 +82,17 @@ flight-cheap search --from TYO --to LAX --date 2025-03-01 --return 2025-03-15
 flight-cheap search --from TYO --to LAX --date 2025-03-01 --nearby
 ```
 
+### Claude Code で対話的分析
+
+データ取得後、Claude Code との対話セッションが開始されます。以下のような質問で分析を依頼できます:
+
+```
+「このルートで最安の組み合わせを教えて」
+「価格変動の傾向を分析して」
+「経由地を使った節約方法は?」
+「いつ予約するのが最適?」
+```
+
 ### ヘルプ表示
 
 ```bash
@@ -101,22 +102,26 @@ flight-cheap search --help
 ## 出力例
 
 ```
-Flight Cheap Analysis: TYO → LAX (2025-03-01)
+Flight Cheap CLI
 ============================================================
+Search: TYO → LAX (2025-03-01)
 
-[Hidden Route Scanner]
-----------------------------------------
-[7つの分析結果がターミナルに表示されます...]
+Fetching flight data from Google Flights...
+Found 15 flights
 
-[Price Manipulation Detector]
-----------------------------------------
-...
+Saving data to: /path/to/flight_data_TYO-LAX_2025-03-01.json
 
 ============================================================
-SUMMARY
-----------------------------------------
-Total Analysis Prompts: 7
-Execution Time: 12.34s
+Flight data saved. You can now analyze it with Claude Code:
+
+  claude code chat
+
+Then ask questions like:
+  - "Analyze the flight data in flight_data_TYO-LAX_2025-03-01.json"
+  - "What's the cheapest route combination?"
+  - "When is the best time to book?"
+
+============================================================
 ```
 
 ## プロジェクト構成
@@ -125,18 +130,17 @@ Execution Time: 12.34s
 flight_cheap/
 ├── src/
 │   ├── __init__.py
-│   ├── prompts.py      # 7つのプロンプト定義
-│   ├── fetcher.py      # SerpAPI 連携
-│   ├── analyzer.py     # Gemini API 連携 + 非同期処理
+│   ├── prompts.py      # 7つの分析プロンプト定義（参考用）
+│   ├── fetcher.py      # Playwright スクレイピング
 │   ├── formatter.py    # 出力整形 (Rich ライブラリ)
 │   └── cli.py          # Click CLI メイン
 ├── tests/
 │   ├── test_prompts.py       # 16 テスト
 │   ├── test_fetcher.py       # 13 テスト
-│   ├── test_analyzer.py      # 11 テスト
 │   ├── test_formatter.py     # 9 テスト
-│   └── test_cli.py           # 10 テスト
-├── .env.example        # API キー テンプレート
+│   ├── test_cli.py           # 10 テスト
+│   └── test_dependencies.py  # 依存関係検証
+├── .env.example        # 環境変数テンプレート
 ├── .gitignore
 ├── pyproject.toml      # 依存関係 + プロジェクト設定
 ├── pytest.ini          # pytest 設定
@@ -146,24 +150,23 @@ flight_cheap/
 ## 技術スタック
 
 - **言語:** Python 3.11+
-- **Data Fetching:** SerpAPI (Google Flights)
-- **LLM:** Google Gemini API
+- **Data Fetching:** Playwright (Chromium headless browser)
+- **分析:** Claude Code 対話セッション
 - **CLI:** Click
 - **出力整形:** Rich
-- **非同期:** asyncio (3並列制限)
-- **テスト:** pytest (59 テスト)
+- **テスト:** pytest (48 テスト)
 
 ## 開発者向け情報
 
 ### テスト実行
 
-全テストを実行：
+全テストを実行:
 
 ```bash
 pytest tests/ -v
 ```
 
-特定のテストのみ：
+特定のテストのみ:
 
 ```bash
 pytest tests/test_prompts.py -v
@@ -175,7 +178,7 @@ pytest tests/test_prompts.py -v
 pip install -e ".[dev]"
 ```
 
-このコマンドで以下が追加インストールされます：
+このコマンドで以下が追加インストールされます:
 - pytest
 - pytest-cov
 - pytest-asyncio
@@ -201,32 +204,30 @@ pip install -e .
 
 を実行してください。
 
-### `API key not found` エラー
-
-`.env` ファイルが存在するか確認：
+### Playwright ブラウザが見つからない
 
 ```bash
-cat .env
+playwright install chromium
 ```
 
-`SERPAPI_KEY` と `GEMINI_API_KEY` が正しく設定されているか確認してください。
+を実行して Chromium をインストールしてください。
 
-### 分析が遅い
+### スクレイピングが失敗する
 
-- Gemini API の無料枠は **15 RPM** の制限があります
-- 7つの分析が並列実行されるため、複数回検索するとレート制限に達することがあります
-- 1 分以上待ってから再度実行してください
+- Google Flights のページ構造が変更された可能性があります
+- ネットワーク接続を確認してください
+- `--headful` オプションでブラウザを表示して動作を確認できます（開発時のみ）
 
 ### 空港コードについて
 
-**エリアコードは自動的に具体的な空港に展開されます：**
+**エリアコードは自動的に具体的な空港に展開されます:**
 
 - `TYO` → `NRT,HND`（成田、羽田）
 - `NYC` → `JFK,LGA,EWR`（ニューヨーク3空港）
 - `LON` → `LHR,LGW,STN`（ロンドン3空港）
 - `PAR` → `CDG,ORY`（パリ2空港）
 
-**推奨：** より正確な結果を得るには、具体的な空港コード（例: `NRT`, `LAX`）を使用してください。
+**推奨:** より正確な結果を得るには、具体的な空港コード（例: `NRT`, `LAX`）を使用してください。
 
 ### テストが失敗する
 
@@ -236,22 +237,15 @@ pytest tests/ -v --tb=short
 
 で詳細を確認してください。
 
-## API 仕様
+## Claude Code 分析プロンプトについて
 
-### SerpAPI (Google Flights)
+`src/prompts.py` には7つの分析プロンプトが定義されています。これらは Claude Code との対話時の参考として利用できます。
 
-検索パラメータ：
-- `departure_id`: 出発空港コード (例: TYO)
-- `arrival_id`: 到着空港コード (例: LAX)
-- `outbound_date`: 出発日 (YYYY-MM-DD)
-- `return_date`: 帰着日 (YYYY-MM-DD、往復の場合)
+自動分析は行わず、ユーザーが必要に応じて Claude Code に質問する形式を採用しています。これにより:
 
-### Gemini API
-
-- モデル: `gemini-2.5-flash`（最新バージョン）
-- 入力: システムプロンプト + ユーザープロンプト + フライトデータ
-- 出力: 分析結果テキスト
-- 並列実行: 3リクエスト同時（無料枠制限を考慮）
+- API コストがかからない
+- より柔軟な分析が可能
+- ユーザーの状況に合わせた深掘りができる
 
 ## ライセンス
 
@@ -269,4 +263,4 @@ MIT License
 
 **GitHub:** https://github.com/tndhk/No36_flight_cheap
 
-**最終更新:** 2025-01-13
+**最終更新:** 2026-01-14

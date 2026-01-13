@@ -190,3 +190,21 @@ class TestCLIEnvironment:
             ],
         )
         assert mock_search.called
+
+
+class TestCLICleanup:
+    """Test CLI cleanup - verify analyzer imports removed."""
+
+    def test_cli_does_not_import_analyzer(self):
+        """cli.pyがanalyzer.pyをインポートしていないことを確認"""
+        with open("/Users/takahiko_tsunoda/work/dev/flight_cheap/src/cli.py") as f:
+            content = f.read()
+        assert "from src.analyzer import" not in content
+        assert "import src.analyzer" not in content
+
+    def test_cli_does_not_import_gemini(self):
+        """cli.pyがgemini関連をインポートしていないことを確認"""
+        with open("/Users/takahiko_tsunoda/work/dev/flight_cheap/src/cli.py") as f:
+            content = f.read()
+        assert "google.generativeai" not in content
+        assert "genai" not in content

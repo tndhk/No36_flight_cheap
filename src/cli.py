@@ -5,7 +5,6 @@ import os
 import time
 from dotenv import load_dotenv
 from src.fetcher import FlightFetcher
-from src.analyzer import FlightAnalyzer
 from src.formatter import ReportFormatter
 
 
@@ -31,16 +30,14 @@ def main_search(
     """
     # Initialize components
     serpapi_key = os.getenv("SERPAPI_KEY")
-    gemini_key = os.getenv("GEMINI_API_KEY")
 
-    if not serpapi_key or not gemini_key:
+    if not serpapi_key:
         raise ValueError(
-            "Missing API keys. Please set SERPAPI_KEY and GEMINI_API_KEY in .env"
+            "Missing API keys. Please set SERPAPI_KEY in .env"
         )
 
     formatter = ReportFormatter()
     fetcher = FlightFetcher(api_key=serpapi_key)
-    analyzer = FlightAnalyzer(api_key=gemini_key)
 
     start_time = time.time()
 
@@ -55,21 +52,11 @@ def main_search(
             include_nearby=include_nearby,
         )
 
-        # Step 2: Analyze with all 7 prompts
-        formatter.display_loading("Running 7 analysis prompts (this may take a moment)...")
-        flight_data_str = flight_data.get_summary()
-        results = analyzer.analyze_flights_sync(flight_data_str)
-
-        # Step 3: Display report
+        # Step 2: Display results (analysis will be done by Claude Code interactively)
         execution_time = time.time() - start_time
-        formatter.display_report(
-            from_airport=from_airport,
-            to_airport=to_airport,
-            departure_date=departure_date,
-            results=results,
-            execution_time=execution_time,
-            return_date=return_date,
-        )
+        print(f"\nFlight data fetched successfully in {execution_time:.2f}s")
+        print("\nFlight data summary:")
+        print(flight_data.get_summary())
 
     except Exception as e:
         formatter.display_error(str(e))

@@ -3,8 +3,10 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from playwright.sync_api import sync_playwright, Browser, Page
-import time
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -175,8 +177,8 @@ class FlightFetcher:
         try:
             # Wait for flight result cards to appear
             page.wait_for_selector(".pIav2d", timeout=timeout * 1000)
-            # Additional wait for dynamic content
-            time.sleep(2)
+            # Wait for network to be idle (dynamic content loaded)
+            page.wait_for_load_state("networkidle", timeout=timeout * 1000)
         except Exception as e:
             raise TimeoutError(f"Flight results did not load within {timeout}s: {str(e)}")
 
@@ -238,7 +240,7 @@ class FlightFetcher:
 
         except Exception as e:
             # Log error but continue with partial data
-            print(f"Warning: Error parsing flight card: {str(e)}")
+            logger.warning(f"Error parsing flight card: {str(e)}")
 
         return flight_info
 
@@ -262,6 +264,6 @@ class FlightFetcher:
                 flights.append(flight)
 
         except Exception as e:
-            print(f"Warning: Error scraping flights: {str(e)}")
+            logger.warning(f"Error scraping flights: {str(e)}")
 
         return flights

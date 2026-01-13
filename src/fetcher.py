@@ -71,7 +71,14 @@ class FlightFetcher:
         Returns:
             Browser instance.
         """
-        if self._browser is None:
+        # Check if browser is connected, not just if it exists
+        if self._browser is None or not self._browser.is_connected():
+            # Clean up old playwright instance if it exists
+            if self._playwright:
+                try:
+                    self._playwright.stop()
+                except:
+                    pass  # Already stopped
             self._playwright = sync_playwright().start()
             self._browser = self._playwright.chromium.launch(headless=self.headless)
         return self._browser

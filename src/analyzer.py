@@ -38,7 +38,7 @@ class FlightAnalyzer:
 
         self.api_key = api_key
         genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel("gemini-pro")
+        self._model = genai.GenerativeModel("gemini-2.5-flash")
         self._semaphore = asyncio.Semaphore(max_concurrent)
 
     async def analyze_single(

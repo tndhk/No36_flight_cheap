@@ -64,6 +64,26 @@ class FlightFetcher:
         self.api_key = api_key
         self.client = SerpApiClient(api_key=api_key)
 
+    def _expand_area_code(self, code: str) -> str:
+        """Expand area code to multiple airports.
+
+        Args:
+            code: Airport or area code.
+
+        Returns:
+            Comma-separated airport codes (uppercase).
+        """
+        area_to_airports = {
+            "TYO": "NRT,HND",  # Tokyo → Narita, Haneda
+            "NYC": "JFK,LGA,EWR",  # New York
+            "LON": "LHR,LGW,STN",  # London
+            "PAR": "CDG,ORY",  # Paris
+            "BER": "BER",  # Berlin (single airport after BBI closure)
+            "ROM": "FCO,CIA",  # Rome
+            "MIL": "MXP,LIN",  # Milan
+        }
+        return area_to_airports.get(code.upper(), code.upper())
+
     def search_flights(
         self,
         from_airport: str,
@@ -87,24 +107,41 @@ class FlightFetcher:
         Raises:
             Exception: If API call fails.
         """
+        # Expand area codes and convert to uppercase
+        from_code = self._expand_area_code(from_airport)
+        to_code = self._expand_area_code(to_airport)
+
         # Build search parameters
         params = {
             "engine": "google_flights",
-            "departure_id": from_airport,
-            "arrival_id": to_airport,
+            "departure_id": from_code,
+            "arrival_id": to_code,
             "outbound_date": departure_date,
             "currency": "USD",
             "hl": "en",
         }
 
-        if return_date:
+        # Add type=2 for one-way flights (required by SerpAPI)
+        if not return_date:
+            params["type"] = "2"
+        else:
             params["return_date"] = return_date
 
         # Execute search
         try:
             response = self.client.search(params)
         except Exception as e:
-            raise Exception(f"SerpAPI request failed: {str(e)}")
+            error_msg = f"SerpAPI request failed: {str(e)}"
+
+            # Add helpful troubleshooting hints for 400 errors
+            if "400" in str(e):
+                error_msg += "\n\nTroubleshooting:"
+                error_msg += "\n- Use 3-letter airport codes (e.g., NRT, LAX)"
+                error_msg += "\n- Area codes like TYO are automatically expanded to NRT,HND"
+                error_msg += "\n- Check date format: YYYY-MM-DD"
+                error_msg += "\n- Verify API key is valid"
+
+            raise Exception(error_msg)
 
         # Parse response
         flights = self._parse_response(response)

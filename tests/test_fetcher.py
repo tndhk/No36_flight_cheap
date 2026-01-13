@@ -26,7 +26,7 @@ def test_build_google_flights_url_oneway():
     url = fetcher._build_url("TYO", "LAX", "2026-03-01")
 
     assert "google.com/travel/flights" in url
-    assert "TYO" in url or "NRT" in url  # TYO expands to NRT
+    assert "NRT" in url  # TYO expands to NRT
     assert "LAX" in url
     assert "2026-03-01" in url
 

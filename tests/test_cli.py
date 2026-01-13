@@ -72,8 +72,8 @@ class TestCLISearch:
             )
             assert mock_search.called
 
-    def test_cli_search_with_nearby_flag(self):
-        """Test search with --nearby flag."""
+    def test_cli_search_with_visible_flag(self):
+        """Test search with --visible flag."""
         runner = CliRunner()
         with patch("src.cli.main_search") as mock_search:
             mock_search.return_value = None
@@ -86,10 +86,14 @@ class TestCLISearch:
                     "LAX",
                     "--date",
                     "2025-03-01",
-                    "--nearby",
+                    "--visible",
                 ],
             )
             assert mock_search.called
+            # Verify headless=False when --visible is passed
+            mock_search.assert_called_once()
+            call_kwargs = mock_search.call_args[1]
+            assert call_kwargs["headless"] is False
 
     def test_cli_help(self):
         """Test CLI help output."""

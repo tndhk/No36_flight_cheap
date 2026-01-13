@@ -267,3 +267,56 @@ class FlightFetcher:
             logger.warning(f"Error scraping flights: {str(e)}")
 
         return flights
+
+    def search_flights(
+        self,
+        from_airport: str,
+        to_airport: str,
+        departure_date: str,
+        return_date: Optional[str] = None,
+    ) -> FlightData:
+        """Search for flights on Google Flights.
+
+        Args:
+            from_airport: Departure airport code (e.g., "TYO", "NRT").
+            to_airport: Arrival airport code (e.g., "LAX").
+            departure_date: Departure date (YYYY-MM-DD).
+            return_date: Optional return date (YYYY-MM-DD) for round-trip.
+
+        Returns:
+            FlightData object with search results.
+
+        Raises:
+            Exception: If scraping fails.
+        """
+        browser = self._launch_browser()
+        page = browser.new_page()
+
+        try:
+            # Build URL and navigate
+            url = self._build_url(from_airport, to_airport, departure_date, return_date)
+            logger.info(f"Navigating to: {url}")
+            page.goto(url, timeout=30000)
+
+            # Wait for results to load
+            logger.info("Waiting for flight results...")
+            self._wait_for_results(page, timeout=30)
+
+            # Scrape flight data
+            logger.info("Scraping flight data...")
+            flights = self._scrape_flights(page)
+            logger.info(f"Found {len(flights)} flights")
+
+            return FlightData(
+                from_airport=from_airport,
+                to_airport=to_airport,
+                departure_date=departure_date,
+                return_date=return_date,
+                flights=flights,
+            )
+
+        except Exception as e:
+            raise Exception(f"Flight search failed: {str(e)}")
+
+        finally:
+            page.close()

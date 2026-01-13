@@ -97,3 +97,39 @@ def test_parse_flight_card_structure():
         assert "arrival_time" in flight
         assert "duration" in flight
         assert "stops" in flight
+
+
+def test_search_flights_returns_flight_data():
+    """search_flightsがFlightDataオブジェクトを返すことを確認"""
+    with FlightFetcher() as fetcher:
+        result = fetcher.search_flights("NRT", "LAX", "2026-03-01")
+
+        assert isinstance(result, FlightData)
+        assert result.from_airport == "NRT"
+        assert result.to_airport == "LAX"
+        assert result.departure_date == "2026-03-01"
+        assert isinstance(result.flights, list)
+
+
+def test_search_flights_roundtrip():
+    """往復検索がreturn_dateを含むことを確認"""
+    with FlightFetcher() as fetcher:
+        result = fetcher.search_flights(
+            "NRT", "LAX", "2026-03-01", return_date="2026-03-15"
+        )
+
+        assert result.return_date == "2026-03-15"
+
+
+@pytest.mark.integration
+def test_search_flights_real_integration():
+    """実際のGoogle Flightsからデータ取得（統合テスト）"""
+    with FlightFetcher(headless=True) as fetcher:
+        result = fetcher.search_flights("NRT", "LAX", "2026-03-01")
+
+        # Basic checks
+        assert isinstance(result, FlightData)
+        # Note: Flights may or may not be found depending on availability
+        print(f"\nFound {len(result.flights)} flights")
+        if result.flights:
+            print(result.get_summary())

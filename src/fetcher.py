@@ -99,3 +99,63 @@ class FlightFetcher:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self.close()
+
+    def _expand_area_code(self, code: str) -> str:
+        """Expand area code to specific airport.
+
+        For Google Flights URLs, we use the first major airport.
+
+        Args:
+            code: Airport or area code.
+
+        Returns:
+            Specific airport code (uppercase).
+        """
+        area_to_airports = {
+            "TYO": "NRT",  # Tokyo → Narita (primary)
+            "NYC": "JFK",  # New York → JFK (primary)
+            "LON": "LHR",  # London → Heathrow (primary)
+            "PAR": "CDG",  # Paris → Charles de Gaulle (primary)
+            "BER": "BER",  # Berlin
+            "ROM": "FCO",  # Rome → Fiumicino (primary)
+            "MIL": "MXP",  # Milan → Malpensa (primary)
+        }
+        return area_to_airports.get(code.upper(), code.upper())
+
+    def _build_url(
+        self,
+        from_airport: str,
+        to_airport: str,
+        departure_date: str,
+        return_date: Optional[str] = None,
+    ) -> str:
+        """Build Google Flights URL.
+
+        Args:
+            from_airport: Departure airport code.
+            to_airport: Arrival airport code.
+            departure_date: Departure date (YYYY-MM-DD).
+            return_date: Optional return date (YYYY-MM-DD).
+
+        Returns:
+            Google Flights URL.
+        """
+        from_code = self._expand_area_code(from_airport)
+        to_code = self._expand_area_code(to_airport)
+
+        if return_date:
+            # Round-trip
+            url = (
+                f"https://www.google.com/travel/flights"
+                f"?q=flights%20from%20{from_code}%20to%20{to_code}"
+                f"%20on%20{departure_date}%20return%20{return_date}"
+            )
+        else:
+            # One-way
+            url = (
+                f"https://www.google.com/travel/flights"
+                f"?q=flights%20from%20{from_code}%20to%20{to_code}"
+                f"%20on%20{departure_date}"
+            )
+
+        return url

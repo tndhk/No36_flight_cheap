@@ -18,3 +18,36 @@ def test_fetcher_has_close_method():
     """FlightFetcherがクローズメソッドを持つことを確認"""
     fetcher = FlightFetcher()
     assert hasattr(fetcher, 'close')
+
+
+def test_build_google_flights_url_oneway():
+    """片道のGoogle Flights URLを正しく生成"""
+    fetcher = FlightFetcher()
+    url = fetcher._build_url("TYO", "LAX", "2026-03-01")
+
+    assert "google.com/travel/flights" in url
+    assert "TYO" in url or "NRT" in url  # TYO expands to NRT
+    assert "LAX" in url
+    assert "2026-03-01" in url
+
+
+def test_build_google_flights_url_roundtrip():
+    """往復のGoogle Flights URLを正しく生成"""
+    fetcher = FlightFetcher()
+    url = fetcher._build_url("TYO", "LAX", "2026-03-01", return_date="2026-03-15")
+
+    assert "google.com/travel/flights" in url
+    assert "2026-03-15" in url
+
+
+def test_navigate_to_google_flights():
+    """Google Flightsページに遷移できることを確認"""
+    with FlightFetcher(headless=True) as fetcher:
+        browser = fetcher._launch_browser()
+        page = browser.new_page()
+
+        url = fetcher._build_url("NRT", "LAX", "2026-03-01")
+        page.goto(url, timeout=30000)
+
+        assert "google.com/travel/flights" in page.url
+        page.close()

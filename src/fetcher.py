@@ -316,7 +316,11 @@ class FlightFetcher:
             )
 
         except Exception as e:
-            raise Exception(f"Flight search failed: {str(e)}")
+            raise Exception(f"Flight search failed: {str(e)}") from e
 
         finally:
             page.close()
+            # Note: Browser is NOT closed here because:
+            # - FlightFetcher is designed to be used as a context manager
+            # - Multiple search_flights() calls can reuse the same browser
+            # - __exit__() handles browser cleanup when context ends
